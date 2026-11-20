@@ -1,6 +1,14 @@
 # Six power electronics experiments
 
-Keep these five files together in a writable MATLAB Drive folder. Set that folder as MATLAB's Current Folder or put it on the MATLAB path. In MATLAB Online, run one of these commands.
+## Run the six device-level circuits
+
+Run `pe_sps_run()` in MATLAB R2024b with Simulink and Simscape Electrical. It builds and simulates six connected Specialized Power Systems circuits using the device blocks and terminal measurements. Keep the repository files together in a writable folder and make it MATLAB's Current Folder. The latest output is `pe_physical_results.zip`. See [Native SPS experiments](README_SPS.md) for details.
+
+On GitHub, open **Actions → MATLAB power electronics experiments → Run workflow**. Select **physical** for the six device-level circuits or **full** for the 31-case ideal-device scan. Open the completed run and download **pe-run-results** under **Artifacts**. It contains `pe_physical_results.zip` for **physical** or `pe_live_results.zip` for **full**.
+
+## Run the ideal-device scan in MATLAB Online
+
+Keep `pe_run.m`, `pe_model.m`, `pe_switching.m`, `pe_draw.m` and this README together in a writable MATLAB Drive folder. Set the folder as MATLAB's Current Folder or put it on the MATLAB path.
 
 ```matlab
 pe_run('smoke')  % six representative points
@@ -20,9 +28,9 @@ Each invocation creates a new UTC-stamped directory and ZIP under the current fo
 | 05 inverting buck-boost | 05_d50 | Duty 0.30, 0.70 |
 | 06 inverting Cuk | 06_d50 | Duty 0.30, 0.70 |
 
-## ZIP contents
+## ZIP contents for the ideal-device scan
 
-- models/pe_NN_<name>.slx stores the six Simulink models at their representative parameters.
+- `models/pe_live_NN_<name>.slx` stores the six ideal-device Simulink models at their representative parameters. The device-level archive uses `models/pe_sps_NN_<name>.slx`.
 - diagrams/NN_simulink.png captures the root-level Simulink block diagram. diagrams/NN_circuit.png presents the corresponding ideal switching schematic.
 - waveforms/<case_id>.png plots the logged steady-window samples. data/<case_id>.csv contains those samples and data/<case_id>.mat keeps the complete Simulink root-output trace and the case parameters.
 - summary.csv contains per-case measurement statistics, simulation step, stop time, and runtime. manifest.json includes channel labels and paths for automated report ingestion. environment.json records MATLAB, Simulink, platform, and run identifiers. run_log.txt lists the simulations and export outcomes.
