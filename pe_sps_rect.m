@@ -40,6 +40,10 @@ for phase = 1:sourceCount(k)
     maskValue(source,{'Amplitude'}, {'220*sqrt(2)'});
     maskValue(source,{'Frequency'}, {num2str(f(k))});
     maskValue(source,{'Phase'}, {num2str(-120*(phase-1))});
+    sourceDialog = get_param(source,'DialogParameters');
+    if isfield(sourceDialog,'SampleTime')
+        set_param(source,'SampleTime','modelStep');
+    end
     sourcePorts{phase} = terminalPair(source,2);
     wire(mdl,sourcePorts{phase}(2),groundPort);
     wire(mdl,sourcePorts{phase}(1),bp.LConn(phase));
@@ -67,15 +71,21 @@ wire(mdl,lp(2),vp(2));
 wire(mdl,sourcePorts{1}(1),sp(1));
 wire(mdl,groundPort,sp(2));
 
-mux = [mdl '/SCR gating vector'];
+controller = [mdl '/SCR firing controller'];
+add_block('built-in/Subsystem',controller,'Position',[185 37 305 93]);
+mux = [controller '/SCR gating vector'];
 gates = 2*arms(k);
 add_block('simulink/Signal Routing/Mux',mux,'Inputs',num2str(gates), ...
-    'Position',[300 21 305 148]);
-firstGate = firingPulses(mdl,k,f(k),gates);
-add_line(mdl,'SCR gating vector/1','SCR full bridge/1','autorouting','on');
+    'Position',[300 30 305 297]);
+firstGate = firingPulses(controller,k,f(k),gates);
+add_block('built-in/Outport',[controller '/Gate_vector'],'Port','1','Position',[360 122 390 136]);
+add_block('built-in/Outport',[controller '/Gate_1'],'Port','2','Position',[360 320 390 334]);
+add_line(controller,'SCR gating vector/1','Gate_vector/1','autorouting','on');
+add_line(controller,firstGate,'Gate_1/1','autorouting','on');
+add_line(mdl,'SCR firing controller/1','SCR full bridge/1','autorouting','on');
 
 names = {'Source_V','Load_V','Load_A','SCR1_pulse'};
-feeds = {'Source voltage/1','Load voltage/1','Load current/1',firstGate};
+feeds = {'Source voltage/1','Load voltage/1','Load current/1','SCR firing controller/2'};
 for port = 1:4
     y = 160+50*(port-1);
     add_block('built-in/Outport',[mdl '/' names{port}],'Port',num2str(port), ...
@@ -205,6 +215,14 @@ function handles = terminalPair(block,count)
 ports = get_param(block,'PortHandles');
 handles = [ports.LConn(:).',ports.RConn(:).'];
 assert(numel(handles)==count,'Unexpected terminal count on %s.',block);
+if count == 2
+    a = get_param(handles(1),'Position');
+    b = get_param(handles(2),'Position');
+    [~,axis] = max(abs(a-b));
+    if a(axis)>b(axis)
+        handles = fliplr(handles);
+    end
+end
 end
 
 function wire(mdl,first,last)
