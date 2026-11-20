@@ -74,7 +74,7 @@ if native
     channelNames{3}{1} = 'Positive diagonal gate';
     channelNames{3}{4} = 'Negative diagonal gate';
     stepsPerPeriod(5:6) = 200;
-    startupCycles(5:6) = [600 1600];
+    startupCycles(5:6) = [3500 9000];
 end
 conditions = operating_points(mode);
 conditions = conditions(ismember([conditions.model],experiments));
@@ -185,7 +185,9 @@ end
 copyfile(archive,latest,'f');
 fprintf('Download %s (run archive: %s).\n',latest,archive);
 if ~isempty(failures)
-    warning('pe_run:PartialRun','This run has errors. See manifest.json and run_log.txt.');
+    error('pe_run:PartialRun', ...
+        '%d run or export errors. See manifest.json and run_log.txt in %s.', ...
+        numel(failures),latest);
 end
 end
 

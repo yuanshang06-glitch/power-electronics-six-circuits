@@ -36,12 +36,9 @@ signal(mdl,gateN,legs(2));
 signal(mdl,gateN,legs(3));
 signal(mdl,gateP,legs(4));
 
-sa = pin(src);
+% Put the DC feed terminal on the upper rail for both source blocks.
+sa = fliplr(pin(src));
 sw1 = pin(legs(1)); sw2 = pin(legs(2)); sw3 = pin(legs(3)); sw4 = pin(legs(4));
-if k==4
-    % A controlled current source uses positive current from + to -.
-    sa = fliplr(sa);
-end
 node(mdl,[sa(1) sw1(1) sw3(1)]);
 node(mdl,[sa(2) pin(ref) sw2(2) sw4(2)]);
 

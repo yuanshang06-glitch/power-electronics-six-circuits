@@ -25,7 +25,10 @@ current-source inverter, current_A is the load resistor branch current and
 auxiliary is the capacitor branch current.
 
 Measurement windows are two AC fundamental cycles or four DC switching
-cycles. The manifest records the sample step and simulation stop time.
+cycles. Before measurement, the rectifiers warm up for ten AC cycles, the
+inverters for six AC cycles, and the buck-boost and Cuk models for 3500
+and 9000 switching cycles (175 ms and 450 ms), respectively. The manifest
+records the sample step and simulation stop time.
 Reference checks compare numerical readings with ideal calculations. Small
 differences can result from finite switch resistance and snubber leakage.
 The inverter models use synchronously gated native ideal switches, with zero
