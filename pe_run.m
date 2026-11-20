@@ -1,4 +1,4 @@
-function archive = pe_run(mode)
+function archive = pe_run(mode,backend,experiments)
 %PE_RUN Build and run six ideal switched power electronics Simulink models.
 %   pe_run('smoke') runs one representative operating point per topology.
 %   pe_run runs the representative points and the additional listed scans.
@@ -6,13 +6,30 @@ if nargin == 0
     mode = 'full';
 end
 mode = validatestring(mode, {'full', 'smoke'});
+if nargin < 2
+    backend = 'switching';
+end
+if nargin < 3
+    experiments = 1:6;
+end
+native = strcmp(backend,'sps');
+sourceFiles = {'pe_run.m','pe_model.m','pe_draw.m','pe_switching.m','README.md'};
+engineLabel = 'sim(model) with built-in Simulink blocks and ideal switching state updates';
+prefix = 'pe_live';
+if native
+    load_system('powerlib');
+    sourceFiles = {'pe_run.m','pe_sps_run.m','pe_sps_rect.m','pe_sps_inv.m', ...
+        'pe_sps_dc.m','pe_draw.m','README_SPS.md'};
+    engineLabel = 'sim(model) with Simscape Electrical Specialized Power Systems devices';
+    prefix = 'pe_sps';
+end
 assert(~isempty(ver('simulink')), 'Simulink is required.');
 sourceDir = fileparts(mfilename('fullpath'));
-assert(exist('pe_model','file') == 2 && exist('pe_draw','file') == 2, ...
-    'Keep pe_run.m, pe_model.m and pe_draw.m together on the MATLAB path.');
+assert(exist('pe_draw','file') == 2, ...
+    'Keep the MATLAB sources together on the MATLAB path.');
 
 started = datetime('now', 'TimeZone', 'UTC', 'Format','yyyyMMdd_HHmmss_SSS');
-tag = ['pe_live_' char(started)];
+tag = [prefix '_' char(started)];
 outDir = fullfile(pwd,tag);
 assert(~isfolder(outDir), 'This run folder already exists.');
 mkdir(outDir);
@@ -20,13 +37,16 @@ parts = {'models','diagrams','waveforms','data','source'};
 for index = 1:numel(parts)
     mkdir(fullfile(outDir, parts{index}));
 end
-for name = {'pe_run.m','pe_model.m','pe_draw.m','pe_switching.m','README.md'}
-    copyfile(fullfile(sourceDir,name{1}),fullfile(outDir,'source',name{1}));
+for name = sourceFiles
+    sourceFile = fullfile(sourceDir,name{1});
+    if isfile(sourceFile)
+        copyfile(sourceFile,fullfile(outDir,'source',name{1}));
+    end
 end
 
 env = struct('matlab_version', version, 'matlab_release', version('-release'), ...
     'platform', computer, 'products', ver, 'mode', mode, 'run_id', tag, ...
-    'start_utc', char(started), 'execution', 'sim(model) with built-in Simulink blocks');
+    'start_utc', char(started), 'execution', engineLabel);
 write_json(fullfile(outDir,'environment.json'),env);
 diary(fullfile(outDir,'run_log.txt'));
 logCleanup = onCleanup(@() diary('off'));
@@ -48,11 +68,20 @@ channelNames = { ...
     {'Injected current (A)','Load voltage (V)','Resistor current (A)','Capacitor current (A)'}, ...
     {'Gate command','Output voltage (V)','Inductor current (A)','Diode conduction'}, ...
     {'Gate command','Output voltage (V)','Input inductor current (A)','Output inductor current (A)'}};
+if native
+    channelNames{1}{4} = 'SCR 1 gate';
+    channelNames{2}{4} = 'SCR 1 gate';
+    channelNames{3}{1} = 'Positive diagonal gate';
+    channelNames{3}{4} = 'Negative diagonal gate';
+    stepsPerPeriod(5:6) = 200;
+    startupCycles(5:6) = [600 1600];
+end
 conditions = operating_points(mode);
+conditions = conditions(ismember([conditions.model],experiments));
 rows = cell(0,1);
 failures = struct('model',{},'case_id',{},'stage',{},'message',{});
-for k = 1:6
-    mdl = sprintf('pe_%02d_%s', k,names{k});
+for k = experiments
+    mdl = sprintf('%s_%02d_%s',prefix,k,names{k});
     selected = conditions([conditions.model] == k);
     base = sprintf('%02d',k);
     try
@@ -69,7 +98,13 @@ for k = 1:6
         new_system(mdl);
         modelCleanup = onCleanup(@() close_model(mdl));
         set_point(mdl,selected(1),h);
-        pe_model(mdl,k);
+        if native
+            builders = {@pe_sps_rect,@pe_sps_inv,@pe_sps_dc};
+            build = builders{ceil(k/2)};
+            build(mdl,k);
+        else
+            pe_model(mdl,k);
+        end
         set_point(mdl,selected(1),h);
         set_param(mdl, 'SolverType','Fixed-step','Solver','FixedStepDiscrete',...
             'FixedStep',num2str(h,17),'StopTime',num2str(stop,17),...
@@ -143,7 +178,10 @@ if ~isempty(summary)
 end
 archive = fullfile(pwd,[tag '.zip']);
 zip(archive,parts,outDir);
-latest = fullfile(pwd,'pe_live_results.zip');
+latest = fullfile(pwd,[prefix '_results.zip']);
+if native
+    latest = fullfile(pwd,'pe_physical_results.zip');
+end
 copyfile(archive,latest,'f');
 fprintf('Download %s (run archive: %s).\n',latest,archive);
 if ~isempty(failures)
@@ -318,5 +356,7 @@ assert(file ~= -1, 'Could not open %s for writing.',filepath);
 cleanup = onCleanup(@() fclose(file));
 fprintf(file,'%s\n',jsonencode(value,'PrettyPrint',true));
 end
+
+
 
 
