@@ -21,12 +21,13 @@ set_param(mdl,'SolverType','Fixed-step','Solver','FixedStepDiscrete', ...
 
 bridge = electric(mdl,'Universal Bridge','SCR full bridge',[355 152 456 297]);
 maskValue(bridge,{'Arms','NumberOfArms'}, {num2str(arms(k))});
-maskValue(bridge,{'PowerElectronicDevice','PowerElectronicDevices'}, ...
+maskValue(bridge,{'Device','PowerElectronicDevice','PowerElectronicDevices'}, ...
     {'Thyristors','Thyristor'});
 maskValue(bridge,{'Ron'}, {'0.0001'});
 maskValue(bridge,{'Lon'}, {'0'});
-maskValue(bridge,{'Rs'}, {'1e6'});
-maskValue(bridge,{'Cs'}, {'inf'});
+maskValue(bridge,{'SnubberResistance','Rs'}, {'1e6'});
+maskValue(bridge,{'SnubberCapacitance','Cs'}, {'inf'});
+maskValue(bridge,{'ForwardVoltage','Vf'}, {'0'});
 bp = get_param(bridge,'PortHandles');
 assert(numel(bp.LConn)==arms(k) && numel(bp.RConn)==2 && numel(bp.Inport)==1, ...
     'Unexpected Universal Bridge terminal arrangement.');
